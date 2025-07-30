@@ -49,6 +49,7 @@ exports.register = async (req, res) => {
       name: name.trim(),
       email: email.toLowerCase().trim(),
       password,
+      role,
     });
 
     await user.save();

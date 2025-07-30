@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["individual", "business"],
+      required: true,
     },
     isActive: {
       type: Boolean,
