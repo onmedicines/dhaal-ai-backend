@@ -11,13 +11,13 @@ const generateToken = (userId) => {
 // Register new user
 exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     // Basic validation
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !role) {
       return res.status(400).json({
         success: false,
-        message: "Please provide name, email, and password",
+        message: "Please provide name, email, password, and role",
       });
     }
 
@@ -34,6 +34,13 @@ exports.register = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "User already exists with this email",
+      });
+    }
+
+    if (role !== "individual" && role !== "business") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role",
       });
     }
 
