@@ -1,5 +1,17 @@
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const OTP = require("../models/OTP");
+const {
+  generateOTP,
+  storeOTP,
+  validateOTP,
+  markOTPAsUsed,
+} = require("../utils/otpService");
+const {
+  sendOTPEmail,
+  sendPasswordResetConfirmation,
+} = require("../utils/emailService");
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -311,6 +323,183 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to change password",
+    });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Check if user exists (replace 'User' with your user model)
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (user) {
+      // Generate and store OTP
+      const otp = generateOTP();
+      await storeOTP(email, otp);
+
+      // Send email
+      await sendOTPEmail(email, otp, user.name);
+    }
+
+    // Always return success (security best practice)
+    res.json({ message: "If email exists, OTP has been sent" });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const validation = await validateOTP(email, otp);
+
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.message });
+    }
+
+    // Mark OTP as used
+    await markOTPAsUsed(validation.otpDoc._id);
+
+    // Generate password reset token (you can use JWT or any other method)
+    const resetToken = jwt.sign(
+      { email: email.toLowerCase(), purpose: "password_reset" },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" },
+    );
+
+    res.json({
+      message: "OTP verified successfully",
+      resetToken,
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Check rate limiting (optional: implement Redis-based rate limiting)
+    const recentOTP = await OTP.findOne({
+      email: email.toLowerCase(),
+      createdAt: { $gt: new Date(Date.now() - 2 * 60 * 1000) }, // 2 minutes
+    });
+
+    if (recentOTP) {
+      return res.status(429).json({
+        error: "Please wait 2 minutes before requesting a new OTP",
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (user) {
+      const otp = generateOTP();
+      await storeOTP(email, otp);
+      await sendOTPEmail(email, otp, user.name);
+    }
+
+    res.json({ message: "New OTP sent if email exists" });
+  } catch (error) {
+    console.error("Resend OTP error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    // Validate input
+    if (!resetToken || !newPassword) {
+      return res.status(400).json({
+        error: "Reset token and new password are required",
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: "Password must be at least 6 characters long",
+      });
+    }
+
+    // Verify reset token (JWT)
+    let decoded;
+    try {
+      decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+
+      // Check if token purpose is for password reset
+      if (decoded.purpose !== "password_reset") {
+        return res.status(400).json({
+          error: "Invalid reset token",
+        });
+      }
+    } catch (jwtError) {
+      return res.status(400).json({
+        error: "Invalid or expired reset token",
+      });
+    }
+
+    // Find user by email from token
+    const user = await User.findOne({
+      email: decoded.email.toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+      });
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update user password
+    await User.findByIdAndUpdate(user._id, {
+      password: hashedPassword,
+      // Optional: Add password change timestamp
+      passwordChangedAt: new Date(),
+    });
+
+    // Invalidate all existing OTPs for this user (cleanup)
+    await OTP.deleteMany({
+      email: decoded.email.toLowerCase(),
+    });
+
+    // Optional: Invalidate all existing user sessions
+    // If you're storing session tokens, you'd want to invalidate them here
+    // This forces user to login again on all devices for security
+
+    // Send confirmation email
+    try {
+      await sendPasswordResetConfirmation(decoded.email, user.name);
+    } catch (emailError) {
+      console.error("Failed to send confirmation email:", emailError);
+      // Don't fail the password reset if email fails
+    }
+
+    // Log the password reset for security monitoring
+    console.log(
+      `Password reset successful for user: ${decoded.email} at ${new Date()}`,
+    );
+
+    res.json({
+      message:
+        "Password reset successfully. Please login with your new password.",
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({
+      error: "Server error. Please try again.",
     });
   }
 };
