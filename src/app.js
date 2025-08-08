@@ -1,6 +1,7 @@
 const express = require("express");
 const connectDB = require("./config/database");
 const authRoutes = require("./routes/auth");
+const detectionRoutes = require("./routes/detection");
 const cors = require("cors");
 
 const app = express();
@@ -18,5 +19,6 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/detection", detectionRoutes);
 
 module.exports = app;
