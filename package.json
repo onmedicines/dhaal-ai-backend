@@ -15,7 +15,8 @@
     "formidable": "^3.5.4",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.5",
-    "nodemailer": "^7.0.5"
+    "nodemailer": "^7.0.5",
+    "puppeteer": "^24.17.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

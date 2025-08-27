@@ -3,6 +3,7 @@ const formidable = require("formidable");
 const fs = require("fs");
 const path = require("path");
 const { RealityDefender } = require("@realitydefender/realitydefender");
+const { checkWebsiteExists } = require("../utils/puppeteerService");
 
 const realityDefender = new RealityDefender({
   apiKey: process.env.REALITY_DEFENDER_API_KEY || "",
@@ -73,4 +74,10 @@ const detectImage = (req, res) => {
   });
 };
 
-module.exports = { detectImage };
+const detectUrl = async (req, res) => {
+  const { url } = req.body;
+  const output = await checkWebsiteExists(url);
+  res.json(output);
+};
+
+module.exports = { detectImage, detectUrl };
