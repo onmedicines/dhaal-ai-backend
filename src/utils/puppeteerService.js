@@ -28,8 +28,20 @@ async function checkWebsiteExists(domainOrUrl) {
 
   let browser;
   try {
-    // Launch the browser once for all attempts
-    browser = await puppeteer.launch({ headless: "new" });
+    browser = await puppeteer.launch({
+      headless: "new",
+      args: [
+        "--disable-setuid-sandbox",
+        "--no-sandbox",
+        "--single-process",
+        "--no-zygote",
+      ],
+      executablePath:
+        process.env.NODE_ENV === "production"
+          ? process.env.PUPPETEER_EXECUTABLE_PATH
+          : puppeteer.executablePath(),
+    });
+
     const page = await browser.newPage();
     await page.setDefaultNavigationTimeout(20000); // 20-second timeout
 
