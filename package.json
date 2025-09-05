@@ -16,7 +16,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.5",
     "nodemailer": "^7.0.5",
-    "puppeteer": "^24.17.0"
+    "puppeteer": "^24.19.0",
+    "whoiser": "^2.0.0-beta.8"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
