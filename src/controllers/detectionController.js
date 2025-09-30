@@ -94,4 +94,26 @@ const detectUrl = async (req, res) => {
   }
 };
 
-module.exports = { detectImage, detectUrl };
+// Ensure app has: app.use(express.json());
+
+const detectEmail = async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || typeof text !== "string") {
+      return res.status(400).json({ error: "text is required" });
+    }
+
+    const r = await fetch("https://anutri03-email-spam-api.hf.space/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }), // { "text": "..." }
+    });
+
+    const data = await r.json().catch(() => ({}));
+    return res.status(r.ok ? 200 : r.status).json(data);
+  } catch {
+    return res.status(502).json({ error: "Upstream request failed" });
+  }
+};
+
+module.exports = { detectImage, detectUrl, detectEmail };
