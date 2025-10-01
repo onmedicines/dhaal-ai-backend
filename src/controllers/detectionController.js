@@ -94,14 +94,16 @@ const detectUrl = async (req, res) => {
   }
 };
 
-// Ensure app has: app.use(express.json());
-
 const detectEmail = async (req, res) => {
   try {
-    const { text } = req.body;
+    let { text } = req.body;
     if (!text || typeof text !== "string") {
       return res.status(400).json({ error: "text is required" });
     }
+
+    text = removeDatesTimes(text);
+
+    console.log(text);
 
     const r = await fetch("https://anutri03-email-spam-api.hf.space/predict", {
       method: "POST",
@@ -117,3 +119,20 @@ const detectEmail = async (req, res) => {
 };
 
 module.exports = { detectImage, detectUrl, detectEmail };
+
+// helper functions
+function removeDatesTimes(text) {
+  const pattern =
+    /\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}(?:,\s*\d{4})?(?:\s*,?\s*(?:at\s+)?\d{1,2}:\d{2}(?:\s?[APap][Mm])?)?/g;
+
+  let cleaned = text.replace(pattern, "");
+
+  // remove spaces and commas
+  cleaned = cleaned
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+,/g, ",")
+    .replace(/^,\s*/, "")
+    .trim();
+
+  return cleaned;
+}
